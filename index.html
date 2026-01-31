@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pidgin - Conversation Explorer</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+      background: #fafafa;
+      color: #222;
+    }
+
+    h1 {
+      font-weight: 400;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 2rem;
+    }
+
+    .status {
+      padding: 1rem;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin-bottom: 2rem;
+    }
+
+    .status.loading {
+      background: #fffde7;
+      border-color: #fff59d;
+    }
+
+    .status.ready {
+      background: #e8f5e9;
+      border-color: #a5d6a7;
+    }
+
+    .status.error {
+      background: #ffebee;
+      border-color: #ef9a9a;
+    }
+
+    .conversations {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .conversation {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 1rem;
+    }
+
+    .conversation h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin: 0 0 0.5rem 0;
+    }
+
+    .conversation .meta {
+      font-size: 0.85rem;
+      color: #666;
+      margin-bottom: 1rem;
+    }
+
+    .chunks {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .chunk {
+      padding: 0.75rem;
+      background: #f5f5f5;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .chunk:hover {
+      background: #eeeeee;
+    }
+
+    .chunk.selected {
+      background: #e3f2fd;
+      border: 1px solid #90caf9;
+    }
+
+    .chunk .role {
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: #888;
+      margin-bottom: 0.25rem;
+    }
+
+    .similarity-panel {
+      position: fixed;
+      right: 2rem;
+      top: 2rem;
+      width: 350px;
+      max-height: calc(100vh - 4rem);
+      overflow-y: auto;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 1rem;
+      display: none;
+    }
+
+    .similarity-panel.visible {
+      display: block;
+    }
+
+    .similarity-panel h3 {
+      font-size: 0.9rem;
+      margin: 0 0 1rem 0;
+      color: #666;
+    }
+
+    .similar-chunk {
+      padding: 0.5rem;
+      margin-bottom: 0.5rem;
+      background: #f5f5f5;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+
+    .similar-chunk .score {
+      font-size: 0.75rem;
+      color: #888;
+      margin-bottom: 0.25rem;
+    }
+
+    .similar-chunk .source {
+      font-size: 0.75rem;
+      color: #666;
+      font-style: italic;
+      margin-top: 0.25rem;
+    }
+
+    @media (max-width: 900px) {
+      .similarity-panel {
+        position: static;
+        width: 100%;
+        margin-top: 2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Pidgin</h1>
+  <p class="subtitle">Conversation explorer with semantic similarity</p>
+
+  <div id="status" class="status loading">
+    Loading embedding model...
+  </div>
+
+  <div id="conversations" class="conversations"></div>
+
+  <div id="similarity-panel" class="similarity-panel">
+    <h3>Similar passages</h3>
+    <div id="similar-chunks"></div>
+  </div>
+
+  <script type="module">
+    import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
+
+    // Use remote models, no local cache needed
+    env.allowLocalModels = false;
+
+    const statusEl = document.getElementById('status');
+    const conversationsEl = document.getElementById('conversations');
+    const similarityPanel = document.getElementById('similarity-panel');
+    const similarChunksEl = document.getElementById('similar-chunks');
+
+    let embedder = null;
+    let allChunks = [];
+    let allEmbeddings = [];
+
+    // Cosine similarity between two vectors
+    function cosineSimilarity(a, b) {
+      let dotProduct = 0;
+      let normA = 0;
+      let normB = 0;
+      for (let i = 0; i < a.length; i++) {
+        dotProduct += a[i] * b[i];
+        normA += a[i] * a[i];
+        normB += b[i] * b[i];
+      }
+      return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+    }
+
+    // Parse markdown conversation into chunks
+    function parseConversation(markdown, filename) {
+      const lines = markdown.split('\n');
+      const chunks = [];
+      let currentRole = null;
+      let currentContent = [];
+      let inFrontmatter = false;
+      let frontmatterDone = false;
+
+      for (const line of lines) {
+        if (line.trim() === '---') {
+          if (!frontmatterDone) {
+            inFrontmatter = !inFrontmatter;
+            if (!inFrontmatter) frontmatterDone = true;
+          }
+          continue;
+        }
+
+        if (inFrontmatter) continue;
+
+        const roleMatch = line.match(/^## (user|assistant)$/i);
+        if (roleMatch) {
+          if (currentRole && currentContent.length > 0) {
+            const text = currentContent.join('\n').trim();
+            if (text) {
+              chunks.push({
+                role: currentRole,
+                text: text,
+                source: filename
+              });
+            }
+          }
+          currentRole = roleMatch[1].toLowerCase();
+          currentContent = [];
+        } else if (currentRole) {
+          currentContent.push(line);
+        }
+      }
+
+      // Don't forget the last chunk
+      if (currentRole && currentContent.length > 0) {
+        const text = currentContent.join('\n').trim();
+        if (text) {
+          chunks.push({
+            role: currentRole,
+            text: text,
+            source: filename
+          });
+        }
+      }
+
+      return chunks;
+    }
+
+    // Truncate text for display
+    function truncate(text, maxLength = 200) {
+      if (text.length <= maxLength) return text;
+      return text.slice(0, maxLength) + '...';
+    }
+
+    // Find similar chunks
+    function findSimilar(index, topK = 5) {
+      const targetEmbedding = allEmbeddings[index];
+      const similarities = allEmbeddings.map((emb, i) => ({
+        index: i,
+        score: i === index ? -1 : cosineSimilarity(targetEmbedding, emb)
+      }));
+
+      similarities.sort((a, b) => b.score - a.score);
+      return similarities.slice(0, topK);
+    }
+
+    // Render similar chunks panel
+    function showSimilar(index) {
+      const similar = findSimilar(index);
+
+      similarChunksEl.innerHTML = similar.map(({ index: i, score }) => {
+        const chunk = allChunks[i];
+        return `
+          <div class="similar-chunk">
+            <div class="score">${(score * 100).toFixed(1)}% similar</div>
+            <div>${truncate(chunk.text, 150)}</div>
+            <div class="source">${chunk.source} (${chunk.role})</div>
+          </div>
+        `;
+      }).join('');
+
+      similarityPanel.classList.add('visible');
+    }
+
+    // Render a conversation
+    function renderConversation(filename, chunks, startIndex) {
+      const container = document.createElement('div');
+      container.className = 'conversation';
+
+      const title = filename.replace('.md', '').replace(/-/g, ' ');
+      container.innerHTML = `
+        <h2>${title}</h2>
+        <div class="meta">${chunks.length} exchanges</div>
+        <div class="chunks"></div>
+      `;
+
+      const chunksContainer = container.querySelector('.chunks');
+
+      chunks.forEach((chunk, i) => {
+        const chunkEl = document.createElement('div');
+        chunkEl.className = 'chunk';
+        chunkEl.innerHTML = `
+          <div class="role">${chunk.role}</div>
+          <div>${truncate(chunk.text)}</div>
+        `;
+
+        chunkEl.addEventListener('click', () => {
+          document.querySelectorAll('.chunk.selected').forEach(el => el.classList.remove('selected'));
+          chunkEl.classList.add('selected');
+          showSimilar(startIndex + i);
+        });
+
+        chunksContainer.appendChild(chunkEl);
+      });
+
+      return container;
+    }
+
+    // Main
+    async function main() {
+      try {
+        // Load the embedding model
+        statusEl.textContent = 'Loading embedding model (this may take a moment on first load)...';
+        embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+
+        statusEl.textContent = 'Loading conversations...';
+
+        // Load conversation files
+        const files = [
+          'conversations/pidgin-origin.md',
+          'conversations/reflecting-on-structure.md',
+          'conversations/distillation-and-discovery.md'
+        ];
+
+        const conversations = [];
+
+        for (const file of files) {
+          try {
+            const response = await fetch(file);
+            if (response.ok) {
+              const text = await response.text();
+              const filename = file.split('/').pop();
+              const chunks = parseConversation(text, filename);
+              conversations.push({ filename, chunks });
+            }
+          } catch (e) {
+            console.warn(`Could not load ${file}:`, e);
+          }
+        }
+
+        if (conversations.length === 0) {
+          statusEl.textContent = 'No conversations found. Make sure conversation files exist in /conversations/';
+          statusEl.className = 'status error';
+          return;
+        }
+
+        // Collect all chunks
+        for (const conv of conversations) {
+          allChunks.push(...conv.chunks);
+        }
+
+        statusEl.textContent = `Embedding ${allChunks.length} passages...`;
+
+        // Embed all chunks
+        for (let i = 0; i < allChunks.length; i++) {
+          const result = await embedder(allChunks[i].text, { pooling: 'mean', normalize: true });
+          allEmbeddings.push(Array.from(result.data));
+          statusEl.textContent = `Embedding ${i + 1}/${allChunks.length} passages...`;
+        }
+
+        statusEl.textContent = `Ready. ${allChunks.length} passages embedded. Click any passage to see similar ones.`;
+        statusEl.className = 'status ready';
+
+        // Render conversations
+        let startIndex = 0;
+        for (const conv of conversations) {
+          conversationsEl.appendChild(renderConversation(conv.filename, conv.chunks, startIndex));
+          startIndex += conv.chunks.length;
+        }
+
+      } catch (error) {
+        statusEl.textContent = `Error: ${error.message}`;
+        statusEl.className = 'status error';
+        console.error(error);
+      }
+    }
+
+    main();
+  </script>
+</body>
+</html>
