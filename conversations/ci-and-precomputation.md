@@ -1,0 +1,238 @@
+# CI and Precomputation
+date: 2026-02-01
+follows: atoms-and-scales
+
+---
+
+## user
+
+conversations -> automated
+use claude hooks?
+research needed
+
+## assistant
+
+I'll research Claude hooks to see how they could automate conversation recording.
+
+## user
+
+what triggers SessionEnd?
+
+## assistant
+
+**SessionEnd triggers:**
+
+| Matcher | Trigger |
+|---------|---------|
+| `clear` | `/clear` command |
+| `logout` | User logs out |
+| `prompt_input_exit` | User exits during prompt input (Ctrl+C, Ctrl+D) |
+| `bypass_permissions_disabled` | Bypass permissions turned off |
+| `other` | Catch-all for edge cases |
+
+**What it doesn't catch:**
+- Terminal window closed abruptly
+- System sleep/shutdown
+- SSH disconnect
+- Process killed
+
+The hook only fires on *graceful* exits where Claude Code can run cleanup. Abrupt termination = no hook.
+
+## user
+
+could be a good option. the many non-graceful exit scenarios make it feel brittle though. what options would we have for doing it progressively throughout the conversation?
+
+## assistant
+
+Good instinct. Progressive options:
+
+**`Stop` hook** (most promising)
+- Fires every time Claude finishes responding
+- Always captures up to the last complete exchange
+- Can run `async: true` to avoid blocking
+
+**`PostToolUse` hook**
+- Fires after each tool completes
+- More granular but noisier
+- Could filter with `matcher` (e.g., only on `Write` or `Edit`)
+
+**`UserPromptSubmit` hook**
+- Fires before Claude processes each prompt
+- Captures user input immediately
+- Slight lag behind (doesn't include Claude's response)
+
+**Practical approach:**
+
+`Stop` with `async: true` gives you:
+- Checkpoint after every exchange
+- No blocking (Claude stays responsive)
+- Worst case: lose only the in-progress response
+
+The script would overwrite the same file each time (or append with dedup logic). On abrupt exit, you have everything up to the last completed turn.
+
+Tradeoff: more disk writes, but transcript is already being written continuously by Claude Code anyway—you're just copying it.
+
+## user
+
+no, I'd like to put a pin in it for now. I think this illuminated a tension. the desire to automate capture versus the ritual of deciding when to make a breaking point. also mediated by another tension of reinventing something claude already does with the transcript
+
+## assistant
+
+Good tensions to name:
+
+1. **Automation vs. ritual** — Friction can be signal. The act of deciding "this is worth saving" might be where meaning gets made.
+
+2. **Duplication vs. curation** — Claude already keeps transcripts. The value in `conversations/` isn't the raw data—it's the editorial choice, the title, the context you add.
+
+Maybe the manual `/conversations` flow is the right weight. The transcript is the backup; the ritual is the artifact.
+
+## user
+
+random thought.. would it be possible to have the indexing and parsing of the corpus done by a github action? I want to start moving this project toward being deployable
+
+## assistant
+
+Interesting direction. Let me look at what indexing/parsing currently exists.
+
+Good news: the architecture is already simple.
+
+**Current state:**
+- Pure client-side, no build step
+- Conversations + atoms = static markdown files
+- Indexing (chunk generation, atom occurrences) happens in browser on load
+- Embeddings computed via Transformers.js in a WebWorker (~27MB model download)
+
+**What could move to CI:**
+
+| Step | Complexity | Benefit |
+|------|------------|---------|
+| Validate markdown/frontmatter | Trivial | Catch errors before deploy |
+| Pre-generate chunks JSON | Low | Skip parsing on load |
+| Pre-compute atom occurrences | Low | Instant vocabulary index |
+| Pre-compute embeddings | Medium | Skip model download + inference |
+
+**For embeddings in CI**, two paths:
+1. **Headless browser** (Playwright) — run existing code as-is
+2. **Node.js** — Transformers.js works in Node, rewrite worker logic
+
+The pre-computed embeddings would be the biggest UX win. ~27MB model download + inference time → instant semantic search.
+
+## user
+
+worth prototyping. I think I want the "atoms" to have less structure. They're really preset search terms. We could have a list of preset terms as a newline-delimited text file rather than a directory full of definition files
+
+## assistant
+
+Done. Summary of changes:
+
+**Simplified atoms → terms**
+- `terms.txt` - one term per line, pipe-delimited aliases
+- Removed `atoms/` directory structure
+
+**Build script**
+- `scripts/build-index.js` - parses conversations, generates chunks, indexes term occurrences
+- Outputs `dist/index.json` with all pre-computed data
+- Run: `npm run build`
+
+**Updated index.html**
+- Loads from `dist/index.json` instead of parsing at runtime
+- Removed ~130 lines of parsing code
+
+**GitHub Action**
+- `.github/workflows/deploy.yml`
+- Builds index on push to main
+- Deploys to GitHub Pages
+
+## user
+
+yes. I also think that the terms should be in a src dir along with the index.html (unless that will prevent github pages working)
+
+## assistant
+
+GitHub Pages with Actions deploys whatever we put in `_site/`, so `src/` is fine.
+
+Done. New structure:
+
+```
+pidgin/
+├── .github/workflows/deploy.yml
+├── conversations/          # markdown corpus
+├── dist/                   # generated (gitignored)
+│   └── index.json
+├── scripts/
+│   └── build-index.js
+├── src/
+│   ├── index.html
+│   ├── embedding-worker.js
+│   └── terms.txt
+└── package.json
+```
+
+## user
+
+tell me about embedding-worker.js is that still used?
+
+## assistant
+
+Yes, still used. It's a Web Worker that:
+
+1. Downloads `Xenova/all-MiniLM-L6-v2` (~27MB) from HuggingFace
+2. Embeds all 571 chunks into 384-dim vectors
+3. Runs in background so UI stays responsive
+
+The embeddings power semantic similarity - when you click a turn, it finds related passages across the corpus.
+
+**Current flow:**
+- Page loads → fetches pre-built `dist/index.json` (fast)
+- Then spawns worker → downloads model → embeds chunks (slow, ~30s)
+
+**Potential optimization:**
+Pre-compute embeddings in CI and include them in `index.json`. Would eliminate the model download and inference on client. Tradeoff: larger `index.json` (571 chunks × 384 floats ≈ 880KB uncompressed).
+
+## user
+
+would be nice to precompute. thinking that we might want semantic search in the app as a feature, so maybe we should keep the model as an option for now.
+
+## assistant
+
+Good instinct. Pre-compute corpus embeddings, keep model available for query embedding later.
+
+Works. But 6.2MB is larger than expected.
+
+```
+terms: 0.00 MB
+conversations: 0.09 MB
+chunks: 0.20 MB
+occurrences: 0.00 MB
+embeddings: 4.38 MB
+```
+
+Gzipped: 2MB (servers typically compress).
+
+## user
+
+keep it simple for right now and lets get it working before optimizing
+
+## assistant
+
+Good. Current state:
+
+**Build pipeline works:**
+- `npm install` → installs transformers
+- `npm run build` → generates `dist/index.json` with pre-computed embeddings
+- ~6MB raw, ~2MB gzipped
+
+**GitHub Action ready:**
+- Installs deps, builds, deploys to Pages
+- Keep `embedding-worker.js` in deployment for future query embedding
+
+**To test locally:**
+```bash
+npm install
+npm run build
+# serve src/ directory (needs HTTP server for fetch)
+```
+
+## user
+
+save our conversation then commit

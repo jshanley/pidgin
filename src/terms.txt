@@ -1,0 +1,5 @@
+strand|strands|the strand
+distillation|distillations|distill|distilled
+pidgin|pidgins
+corpus
+composability|composable|composability of intent

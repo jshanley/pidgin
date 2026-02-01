@@ -536,151 +536,6 @@
       reader: document.getElementById('reader')
     };
 
-    // Parse conversation file
-    function parseConversation(markdown, filename) {
-      const lines = markdown.split('\n');
-      const frontmatter = {};
-      const turns = [];
-      let inHeader = true;
-      let currentRole = null;
-      let currentContent = [];
-
-      for (const line of lines) {
-        if (line.trim() === '---') {
-          inHeader = false;
-          continue;
-        }
-
-        if (inHeader) {
-          const titleMatch = line.match(/^#\s+(.+)$/);
-          if (titleMatch) {
-            frontmatter.title = titleMatch[1];
-            continue;
-          }
-          const metaMatch = line.match(/^(\w+):\s*(.+)$/);
-          if (metaMatch) {
-            frontmatter[metaMatch[1]] = metaMatch[2];
-          }
-          continue;
-        }
-
-        const roleMatch = line.match(/^## (user|assistant)$/i);
-        if (roleMatch) {
-          if (currentRole && currentContent.length > 0) {
-            const text = currentContent.join('\n').trim();
-            if (text) {
-              turns.push({ role: currentRole, text, source: filename });
-            }
-          }
-          currentRole = roleMatch[1].toLowerCase();
-          currentContent = [];
-        } else if (currentRole) {
-          currentContent.push(line);
-        }
-      }
-
-      if (currentRole && currentContent.length > 0) {
-        const text = currentContent.join('\n').trim();
-        if (text) {
-          turns.push({ role: currentRole, text, source: filename });
-        }
-      }
-
-      const title = (frontmatter.title || filename.replace('.md', ''))
-        .replace(/-/g, ' ')
-        .replace(/^\w/, c => c.toUpperCase());
-
-      return { filename, title, frontmatter, turns };
-    }
-
-    // Parse atom file
-    function parseAtom(text, filename) {
-      const lines = text.trim().split('\n');
-      const atom = { filename };
-
-      for (const line of lines) {
-        const match = line.match(/^(\w+):\s*(.+)$/);
-        if (match) {
-          const key = match[1];
-          let value = match[2].trim();
-
-          if (value.startsWith('[') && value.endsWith(']')) {
-            value = value.slice(1, -1).split(',').map(s => s.trim()).filter(Boolean);
-          }
-
-          atom[key] = value;
-        }
-      }
-
-      return atom;
-    }
-
-    // Split text into paragraphs (by blank lines or markdown structure)
-    function splitIntoParagraphs(text) {
-      // Split on double newlines or markdown headers
-      const blocks = text.split(/\n\n+/);
-      return blocks
-        .map(b => b.trim())
-        .filter(b => b.length > 20); // Only keep substantial paragraphs
-    }
-
-    // Generate multi-scale chunks from conversations
-    function generateChunks(conversations) {
-      const chunks = [];
-
-      for (const conv of conversations) {
-        for (let turnIndex = 0; turnIndex < conv.turns.length; turnIndex++) {
-          const turn = conv.turns[turnIndex];
-
-          // Turn-level chunk
-          chunks.push({
-            text: turn.text,
-            source: conv.filename,
-            role: turn.role,
-            scale: 'turn',
-            turnIndex
-          });
-
-          // Paragraph-level chunks within the turn
-          const paragraphs = splitIntoParagraphs(turn.text);
-          for (const para of paragraphs) {
-            // Only add if different from the full turn (avoid duplicates for single-paragraph turns)
-            if (para !== turn.text && para.length > 30) {
-              chunks.push({
-                text: para,
-                source: conv.filename,
-                role: turn.role,
-                scale: 'paragraph',
-                turnIndex
-              });
-            }
-          }
-        }
-      }
-
-      return chunks;
-    }
-
-    // Find atom occurrences in chunks (prefer paragraph scale for precision)
-    function indexAtomOccurrences() {
-      for (const atom of state.atoms) {
-        const terms = [atom.term, ...(atom.aliases || [])];
-        const indices = [];
-
-        state.chunks.forEach((chunk, i) => {
-          const textLower = chunk.text.toLowerCase();
-          for (const term of terms) {
-            if (textLower.includes(term.toLowerCase())) {
-              indices.push(i);
-              break;
-            }
-          }
-        });
-
-        state.atomOccurrences.set(atom.term, indices);
-      }
-    }
-
     // Highlight atoms in HTML content
     function highlightAtoms(html) {
       let result = html;
@@ -746,7 +601,6 @@
         <div class="atoms-header">Named concepts</div>
         ${sorted.map(atom => {
           const count = state.atomOccurrences.get(atom.term)?.length || 0;
-          const sourceName = (atom.source || '').replace('.md', '').replace(/-/g, ' ');
           return `
             <div class="atom-item${state.currentAtom === atom.term ? ' active' : ''}" data-term="${atom.term}">
               <span class="term">${atom.term}</span>
@@ -930,49 +784,23 @@
 
     async function main() {
       try {
-        // Load atoms (fast, no model needed)
-        try {
-          const indexRes = await fetch('atoms/index.json');
-          if (indexRes.ok) {
-            const atomFiles = await indexRes.json();
-            for (const file of atomFiles) {
-              try {
-                const res = await fetch(`atoms/${file}`);
-                if (res.ok) {
-                  const text = await res.text();
-                  const atom = parseAtom(text, file);
-                  state.atoms.push(atom);
-                }
-              } catch (e) {
-                console.warn(`Could not load atom ${file}:`, e);
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('Could not load atoms index:', e);
+        // Load pre-computed index
+        const indexRes = await fetch('dist/index.json');
+        if (!indexRes.ok) {
+          throw new Error('Could not load index. Run: npm run build');
         }
+        const index = await indexRes.json();
 
-        // Load conversations (fast)
-        const files = [
-          'conversations/pidgin-origin.md',
-          'conversations/reflecting-on-structure.md',
-          'conversations/distillation-and-discovery.md',
-          'conversations/layers-and-chunks.md',
-          'conversations/atoms-and-scales.md'
-        ];
+        // Populate state from index
+        state.atoms = index.terms;
+        state.conversations = index.conversations;
+        state.chunks = index.chunks;
+        state.embeddings = index.embeddings || [];
+        state.ready = state.embeddings.length > 0;
 
-        for (const file of files) {
-          try {
-            const response = await fetch(file);
-            if (response.ok) {
-              const text = await response.text();
-              const filename = file.split('/').pop();
-              const conv = parseConversation(text, filename);
-              state.conversations.push(conv);
-            }
-          } catch (e) {
-            console.warn(`Could not load ${file}:`, e);
-          }
+        // Convert occurrences object to Map
+        for (const [term, indices] of Object.entries(index.occurrences)) {
+          state.atomOccurrences.set(term, indices);
         }
 
         if (state.conversations.length === 0) {
@@ -980,20 +808,11 @@
           return;
         }
 
-        // Generate multi-scale chunks (turns + paragraphs)
-        state.chunks = generateChunks(state.conversations);
-
-        // Index atom occurrences (fast, text matching)
-        indexAtomOccurrences();
-
         // Show UI immediately
         setupEventListeners();
         renderSidebar();
         selectConversation(0);
         updateFooter();
-
-        // Load embeddings in worker (non-blocking)
-        loadEmbeddingsInWorker();
 
       } catch (error) {
         els.sidebarFooter.textContent = `Error: ${error.message}`;
