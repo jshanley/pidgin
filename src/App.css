@@ -164,6 +164,21 @@ body {
   padding: 2rem 3rem;
 }
 
+.corpus {
+  max-width: 700px;
+}
+
+.conversation-section {
+  margin-bottom: 4rem;
+  padding-bottom: 2rem;
+  border-bottom: 2px solid #e0e0e0;
+  scroll-margin-top: 2rem;
+}
+
+.conversation-section:last-child {
+  border-bottom: none;
+}
+
 .reader-inner {
   max-width: 700px;
 }
@@ -196,6 +211,8 @@ body {
 /* Conversation turns */
 .turn {
   margin-bottom: 2.5rem;
+  position: relative;
+  padding-left: 2.25rem;
 }
 
 .turn-header {
@@ -205,20 +222,30 @@ body {
   margin-bottom: 1rem;
 }
 
+.turn-icon {
+  position: absolute;
+  left: -0.25rem;
+  top: -0.25rem;
+  width: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.turn-icon .icon {
+  width: 24px;
+  height: 24px;
+}
+
+.turn.user-turn .turn-icon { color: #1976d2; }
+.turn.assistant-turn .turn-icon { color: #7b1fa2; }
+
 .turn-role {
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
   flex-shrink: 0;
-}
-
-.turn-role .icon {
-  width: 14px;
-  height: 14px;
 }
 
 .turn-role.user { color: #1976d2; }

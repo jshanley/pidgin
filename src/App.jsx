@@ -1,11 +1,12 @@
 import { useEffect } from 'react'
-import { AppStateProvider, useAppDispatch } from './hooks/useAppState'
+import { Outlet, useParams, useNavigate, useMatches } from '@tanstack/react-router'
+import { useAppDispatch, useAppState } from './hooks/useAppState'
 import { Sidebar } from './components/Sidebar'
 import { Reader } from './components/Reader'
-import './App.css'
 
-function AppContent() {
+export default function App() {
   const dispatch = useAppDispatch()
+  const { scrollContainerRef } = useAppState()
 
   useEffect(() => {
     async function loadData() {
@@ -22,14 +23,11 @@ function AppContent() {
         dispatch({
           type: 'LOAD_DATA',
           conversations: index.conversations,
+          readings: index.readings || [],
           chunks: index.chunks,
           atoms: index.terms,
           atomOccurrences
         })
-
-        if (index.conversations.length > 0) {
-          dispatch({ type: 'SELECT_CONVERSATION', index: 0 })
-        }
       } catch (err) {
         console.error('Failed to load data:', err)
       }
@@ -41,17 +39,9 @@ function AppContent() {
   return (
     <div className="layout">
       <Sidebar />
-      <main className="reader">
+      <main className="reader" ref={scrollContainerRef}>
         <Reader />
       </main>
     </div>
-  )
-}
-
-export default function App() {
-  return (
-    <AppStateProvider>
-      <AppContent />
-    </AppStateProvider>
   )
 }

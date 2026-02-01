@@ -1,69 +1,118 @@
+import { useEffect, useRef, memo } from 'react'
+import { useParams, useNavigate, useLocation } from '@tanstack/react-router'
+import { marked } from 'marked'
 import { formatDate } from '../utils/formatDate'
+import { slugify } from '../utils/slugify'
+import { highlightAtoms } from '../utils/highlightAtoms'
+import { UserIcon, AssistantIcon } from '../utils/icons'
 import { useAppState } from '../hooks/useAppState'
-import { Turn } from './Turn'
-import { OccurrenceCard } from './OccurrenceCard'
+import { useScrollSpy } from '../hooks/useScrollSpy'
+import { scrollToElement } from '../hooks/useScrollSpy'
+
+marked.setOptions({ gfm: true, breaks: true })
 
 export function Reader() {
-  const { conversations, currentConversation, currentAtom, atoms, atomOccurrences, chunks } = useAppState()
+  const { conversations, atoms, activeSection, setActiveSection, scrollContainerRef } = useAppState()
+  const params = useParams({ strict: false })
+  const navigate = useNavigate()
+  const location = useLocation()
+  const isScrollingRef = useRef(false)
+  const activeId = useScrollSpy(scrollContainerRef, 'section[id]', conversations.length > 0)
 
-  if (currentConversation !== null) {
-    return <ConversationView conversation={conversations[currentConversation]} />
-  }
+  const targetSlug = params.slug
 
-  if (currentAtom !== null) {
-    const atom = atoms.find(a => a.term === currentAtom)
-    const indices = atomOccurrences.get(currentAtom) || []
-    return <AtomView atom={atom} indices={indices} chunks={chunks} />
-  }
+  // Update URL when scroll spy detects new section (replaceState behavior)
+  useEffect(() => {
+    // Don't update URL while programmatic scroll is in progress
+    if (isScrollingRef.current) return
+    if (activeId && activeId !== activeSection) {
+      setActiveSection(activeId)
+      // Only update URL if we're on a conversations route
+      if (location.pathname.startsWith('/conversations')) {
+        navigate({
+          to: '/conversations/$slug',
+          params: { slug: activeId },
+          replace: true // replaceState, no history
+        })
+      }
+    }
+  }, [activeId, activeSection, setActiveSection, navigate, location.pathname])
 
-  return <div className="empty-state">Select a conversation</div>
-}
+  // Scroll to target conversation on route change
+  useEffect(() => {
+    if (targetSlug && conversations.length > 0 && scrollContainerRef.current) {
+      const el = document.getElementById(targetSlug)
+      if (el) {
+        isScrollingRef.current = true
+        setActiveSection(targetSlug)
+        scrollToElement(el, scrollContainerRef.current, 400)
+        // Re-enable scroll spy after animation completes
+        setTimeout(() => {
+          isScrollingRef.current = false
+        }, 450)
+      }
+    }
+  }, [targetSlug, conversations.length, scrollContainerRef, setActiveSection])
 
-function ConversationView({ conversation }) {
-  const metaParts = []
-  if (conversation.frontmatter.date) {
-    metaParts.push(<span key="date">{formatDate(conversation.frontmatter.date)}</span>)
-  }
-  if (conversation.frontmatter.follows) {
-    metaParts.push(<span key="follows">follows: {conversation.frontmatter.follows}</span>)
+  if (conversations.length === 0) {
+    return <div className="empty-state">Loading...</div>
   }
 
   return (
-    <div className="reader-inner">
-      <header className="reader-header">
-        <h1>{conversation.title}</h1>
-        {metaParts.length > 0 && <div className="reader-meta">{metaParts}</div>}
-      </header>
-      <article className="turns">
-        {conversation.turns.map((turn, i) => (
-          <Turn key={i} turn={turn} index={i} />
-        ))}
-      </article>
+    <div className="corpus">
+      {conversations.map(conv => (
+        <ConversationSection key={conv.filename} conversation={conv} atoms={atoms} />
+      ))}
     </div>
   )
 }
 
-function AtomView({ atom, indices, chunks }) {
+const ConversationSection = memo(function ConversationSection({ conversation, atoms }) {
+  const slug = slugify(conversation.title)
+
   return (
-    <div className="reader-inner">
+    <section id={slug} className="conversation-section">
       <header className="reader-header">
-        <h1>{atom?.term}</h1>
+        <h1>{conversation.title}</h1>
         <div className="reader-meta">
-          <span>{indices.length} occurrence{indices.length !== 1 ? 's' : ''}</span>
-          {atom?.source && (
-            <span>named in: {atom.source.replace('.md', '').replace(/-/g, ' ')}</span>
+          {conversation.frontmatter.date && (
+            <span>{formatDate(conversation.frontmatter.date)}</span>
+          )}
+          {conversation.frontmatter.follows && (
+            <span>follows: {conversation.frontmatter.follows}</span>
           )}
         </div>
       </header>
-      <div className="occurrences">
-        {indices.length === 0 ? (
-          <div className="empty-state">No occurrences found</div>
-        ) : (
-          indices.map(index => (
-            <OccurrenceCard key={index} chunk={chunks[index]} />
-          ))
-        )}
+      <article className="turns">
+        {conversation.turns.map((turn, i) => (
+          <Turn key={i} turn={turn} atoms={atoms} />
+        ))}
+      </article>
+    </section>
+  )
+})
+
+const Turn = memo(function Turn({ turn, atoms }) {
+  const rendered = marked.parse(turn.text)
+  const highlighted = highlightAtoms(rendered, atoms)
+  const Icon = turn.role === 'user' ? UserIcon : AssistantIcon
+  const turnClass = turn.role === 'user' ? 'user-turn' : 'assistant-turn'
+
+  return (
+    <div className={`turn ${turnClass}`}>
+      <div className="turn-icon">
+        <Icon />
       </div>
+      <div className="turn-header">
+        <div className={`turn-role ${turn.role}`}>
+          {turn.role}
+        </div>
+        <div className="turn-rule"></div>
+      </div>
+      <div
+        className="turn-content"
+        dangerouslySetInnerHTML={{ __html: highlighted }}
+      />
     </div>
   )
-}
+})

@@ -1,17 +1,16 @@
-import { createContext, useContext, useReducer, useMemo } from 'react'
+import { createContext, useContext, useReducer, useMemo, useCallback, useRef } from 'react'
 
 const AppStateContext = createContext(null)
 const AppDispatchContext = createContext(null)
 
 const initialState = {
   conversations: [],
+  readings: [],
   chunks: [],
   atoms: [],
   atomOccurrences: new Map(),
-  currentConversation: null,
   currentTab: 'conversations',
-  currentAtom: null,
-  highlightedTurn: null
+  activeSection: null
 }
 
 function appReducer(state, action) {
@@ -20,34 +19,20 @@ function appReducer(state, action) {
       return {
         ...state,
         conversations: action.conversations,
+        readings: action.readings || [],
         chunks: action.chunks,
         atoms: action.atoms,
         atomOccurrences: action.atomOccurrences
-      }
-    case 'SELECT_CONVERSATION':
-      return {
-        ...state,
-        currentConversation: action.index,
-        currentAtom: null,
-        highlightedTurn: null
-      }
-    case 'SELECT_ATOM':
-      return {
-        ...state,
-        currentAtom: action.term,
-        currentConversation: null,
-        currentTab: 'atoms',
-        highlightedTurn: null
       }
     case 'SET_TAB':
       return {
         ...state,
         currentTab: action.tab
       }
-    case 'HIGHLIGHT_TURN':
+    case 'SET_ACTIVE_SECTION':
       return {
         ...state,
-        highlightedTurn: action.turnIndex
+        activeSection: action.section
       }
     default:
       return state
@@ -56,9 +41,20 @@ function appReducer(state, action) {
 
 export function AppStateProvider({ children }) {
   const [state, dispatch] = useReducer(appReducer, initialState)
+  const scrollContainerRef = useRef(null)
+
+  const setActiveSection = useCallback((section) => {
+    dispatch({ type: 'SET_ACTIVE_SECTION', section })
+  }, [])
+
+  const contextValue = useMemo(() => ({
+    ...state,
+    setActiveSection,
+    scrollContainerRef
+  }), [state, setActiveSection])
 
   return (
-    <AppStateContext.Provider value={state}>
+    <AppStateContext.Provider value={contextValue}>
       <AppDispatchContext.Provider value={dispatch}>
         {children}
       </AppDispatchContext.Provider>

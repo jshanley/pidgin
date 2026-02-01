@@ -1,24 +1,34 @@
+import { useNavigate } from '@tanstack/react-router'
 import { formatDate } from '../utils/formatDate'
-import { useAppState, useAppDispatch } from '../hooks/useAppState'
+import { slugify } from '../utils/slugify'
+import { useAppState } from '../hooks/useAppState'
 
 export function ConversationList() {
-  const { conversations, currentConversation } = useAppState()
-  const dispatch = useAppDispatch()
+  const { conversations, activeSection } = useAppState()
+  const navigate = useNavigate()
+
+  const handleClick = (slug) => {
+    navigate({ to: '/conversations/$slug', params: { slug } })
+  }
 
   return (
     <>
-      {conversations.map((conv, i) => (
-        <div
-          key={conv.filename}
-          className={`conversation-item${currentConversation === i ? ' active' : ''}`}
-          onClick={() => dispatch({ type: 'SELECT_CONVERSATION', index: i })}
-        >
-          <div className="title">{conv.title}</div>
-          <div className="meta">
-            {formatDate(conv.frontmatter.date)} · {conv.turns.length} turns
+      {conversations.map((conv) => {
+        const slug = slugify(conv.title)
+        const isActive = activeSection === slug
+        return (
+          <div
+            key={conv.filename}
+            className={`conversation-item${isActive ? ' active' : ''}`}
+            onClick={() => handleClick(slug)}
+          >
+            <div className="title">{conv.title}</div>
+            <div className="meta">
+              {formatDate(conv.frontmatter.date)} · {conv.turns.length} turns
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
     </>
   )
 }
