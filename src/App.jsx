@@ -10,7 +10,7 @@ function AppContent() {
   useEffect(() => {
     async function loadData() {
       try {
-        const res = await fetch('/dist/index.json')
+        const res = await fetch(`${import.meta.env.BASE_URL}dist/index.json`)
         if (!res.ok) throw new Error('Could not load index. Run: npm run build:index')
         const index = await res.json()
 
