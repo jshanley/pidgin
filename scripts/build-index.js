@@ -1,5 +1,5 @@
-import { readdir, readFile, writeFile } from 'fs/promises';
-import { join } from 'path';
+import { readdir, readFile, writeFile, mkdir } from 'fs/promises';
+import { join, dirname } from 'path';
 import { pipeline } from '@xenova/transformers';
 
 const CONVERSATIONS_DIR = 'conversations';
@@ -188,6 +188,7 @@ async function main() {
     buildTime: new Date().toISOString()
   };
 
+  await mkdir(dirname(OUTPUT_FILE), { recursive: true });
   await writeFile(OUTPUT_FILE, JSON.stringify(index, null, 2));
   console.log(`Wrote ${OUTPUT_FILE}`);
 }

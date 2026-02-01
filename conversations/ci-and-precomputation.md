@@ -236,3 +236,42 @@ npm run build
 ## user
 
 save our conversation then commit
+
+## assistant
+
+Done. Committed `d27d68b`:
+
+```
+add CI build pipeline with precomputed embeddings
+
+- move source to src/, simplify atoms to terms.txt
+- add build script that generates dist/index.json
+- precompute embeddings at build time (~6MB index)
+- add GitHub Actions workflow for Pages deployment
+```
+
+The `.claude/` directory (skills config) is untracked. Want me to add that too, or keep it local?
+
+## user
+
+track it, commit, and push
+
+## assistant
+
+Pushed. Two commits:
+- `d27d68b` - CI build pipeline
+- `49a82de` - claude skills config
+
+GitHub Actions should trigger now. Enable Pages in repo settings (Source: GitHub Actions) to complete deployment.
+
+## user
+
+our script needs to create the dist dir probably:
+
+```
+Error: ENOENT: no such file or directory, open 'dist/index.json'
+```
+
+## assistant
+
+Fixed. Added `mkdir` to create dist directory before writing.
