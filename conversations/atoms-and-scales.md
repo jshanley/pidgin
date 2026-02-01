@@ -1,6 +1,6 @@
 # Atoms and Scales
 
-date: 2026-02-01
+date: 2026-02-01T08:00:00-08:00
 follows: layers-and-chunks
 
 ---

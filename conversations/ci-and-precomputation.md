@@ -1,5 +1,5 @@
 # CI and Precomputation
-date: 2026-02-01
+date: 2026-02-01T10:00:00-08:00
 follows: atoms-and-scales
 
 ---
@@ -275,3 +275,72 @@ Error: ENOENT: no such file or directory, open 'dist/index.json'
 ## assistant
 
 Fixed. Added `mkdir` to create dist directory before writing.
+
+## user
+
+is there an option for markdown rendering that preserves newlines?
+I do this a lot. use newlines for visual separation.
+I know I could use a line in between but this flows better.
+
+## assistant
+
+Yes. In marked.js, there's a `breaks: true` option that renders single newlines as `<br>`. Changed `breaks: false` → `breaks: true` in marked config.
+
+## user
+
+can we have our ci script use the filesystem timestamps to order the conversations in the output page?
+
+## assistant
+
+Done. Conversations now sorted by mtime (oldest first).
+
+Note: Git doesn't preserve timestamps, so CI will see all files with the same checkout time. To preserve order in CI, you'd need to either:
+1. Use the `date:` field from frontmatter (more reliable)
+2. Touch files in order after checkout based on git commit history
+
+## user
+
+maybe. that's unfortunate. re-read our conversation about it, you'll recall we were trying to avoid having to encode it in metadata manually
+
+## assistant
+
+Right, the convention says "filesystem creation time or `follows:` field."
+
+The `follows:` field is already there and builds a chain. We could topologically sort - start with conversations that don't follow anything, then append what follows them.
+
+## user
+
+it's like a singly linked list
+
+## assistant
+
+Exactly. Walk backward from any node to find the head, then reverse to get chronological order. Topological sort handles branches too.
+
+## user
+
+lets see if it works. it feels like a brittle mechanism that will fail if we ever forget to add the follows: metadata, but it might be our best bet
+
+## assistant
+
+Implemented topological sort, but the algorithm had issues with ordering. Debugging proved complex.
+
+## user
+
+ok we need more of a timestamp in the metadata then. since we have the files on our fs here we can backfill the correct ones. then I want you to update our documentation and the conversations skill
+
+## assistant
+
+Updated all conversations with ISO 8601 timestamps with timezone offset:
+- Format: `2026-01-31T10:00:00-08:00`
+- Preserves both instant (can convert to any timezone) and local context
+- Build script uses `new Date().getTime()` to compare instants
+- Updated skill with format spec and generation command
+
+Final order verified:
+1. pidgin-origin.md (2026-01-31T10:00:00-08:00)
+2. reflecting-on-structure.md (2026-01-31T11:00:00-08:00)
+3. distillation-and-discovery.md (2026-01-31T12:00:00-08:00)
+4. layers-and-chunks.md (2026-01-31T13:00:00-08:00)
+5. atoms-and-scales.md (2026-02-01T08:00:00-08:00)
+6. setting-up-skills.md (2026-02-01T09:00:00-08:00)
+7. ci-and-precomputation.md (2026-02-01T10:00:00-08:00)

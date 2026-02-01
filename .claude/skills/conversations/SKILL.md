@@ -11,7 +11,7 @@ Records of human-AI exchanges, preserved verbatim.
 
 ```markdown
 # Title
-date: YYYY-MM-DD
+date: 2026-01-31T10:00:00-08:00
 follows: previous-conversation-name  (optional)
 
 ---
@@ -29,10 +29,20 @@ What was said back, verbatim.
 
 - **Location**: `conversations/`
 - **Naming**: topic-based, not numbered (`pidgin-origin.md`, not `01-origin.md`)
-- **Order**: filesystem creation time or `follows:` field
+- **Date**: ISO 8601 with timezone offset (`YYYY-MM-DDTHH:MM:SS±HH:MM`)
+- **Order**: determined by `date` field (must normalize to instant for comparison)
 - **Content**: verbatim, no summary or interpretation
 - **Boundaries**: save at natural breaks, when a thread feels complete
 - **Continuation**: append-only; can save partial conversations and add more turns later
+
+## Generating timestamps
+
+When saving a conversation, use current local time with offset:
+```bash
+date +"%Y-%m-%dT%H:%M:%S%z" | sed 's/\(..\)$/:\1/'
+```
+
+This produces `2026-02-01T10:30:00-08:00` — preserving both the instant and local context.
 
 ## Retrieval
 

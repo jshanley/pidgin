@@ -145,15 +145,21 @@ async function main() {
   const terms = parseTerms(termsText);
   console.log(`Loaded ${terms.length} terms`);
 
-  // Load conversations
+  // Load conversations, sorted by frontmatter date
   const files = await readdir(CONVERSATIONS_DIR);
-  const mdFiles = files.filter(f => f.endsWith('.md')).sort();
+  const mdFiles = files.filter(f => f.endsWith('.md'));
 
   const conversations = [];
   for (const file of mdFiles) {
     const content = await readFile(join(CONVERSATIONS_DIR, file), 'utf-8');
     conversations.push(parseConversation(content, file));
   }
+
+  conversations.sort((a, b) => {
+    const dateA = a.frontmatter.date ? new Date(a.frontmatter.date).getTime() : 0;
+    const dateB = b.frontmatter.date ? new Date(b.frontmatter.date).getTime() : 0;
+    return dateA - dateB;
+  });
   console.log(`Loaded ${conversations.length} conversations`);
 
   // Generate chunks
