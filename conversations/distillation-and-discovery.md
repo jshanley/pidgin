@@ -1,6 +1,6 @@
 # Distillation and Discovery
 
-date: 2026-01-31T12:00:00-08:00
+date: 2026-01-31T12:37:53-08:00
 follows: reflecting-on-structure
 
 ---

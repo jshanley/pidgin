@@ -1,6 +1,6 @@
 # Layers and Chunks
 
-date: 2026-01-31T13:00:00-08:00
+date: 2026-01-31T13:17:45-08:00
 follows: distillation-and-discovery
 
 ---

@@ -1,5 +1,5 @@
 # Setting Up Skills
-date: 2026-02-01T09:00:00-08:00
+date: 2026-02-01T09:58:25-08:00
 follows: atoms-and-scales
 
 ---
