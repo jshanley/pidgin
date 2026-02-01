@@ -3,238 +3,573 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pidgin - Conversation Explorer</title>
+  <title>Pidgin</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     * {
       box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
     body {
       font-family: system-ui, -apple-system, sans-serif;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 2rem;
       background: #fafafa;
+      color: #222;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      background: #fff;
+      border-right: 1px solid #e0e0e0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      padding: 1.5rem 1rem 1rem;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .sidebar-header h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .sidebar-header .corpus-label {
+      font-size: 0.75rem;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .sidebar-tabs {
+      display: flex;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .sidebar-tab {
+      flex: 1;
+      padding: 0.75rem 0.5rem;
+      background: none;
+      border: none;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: #666;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+
+    .sidebar-tab:hover {
       color: #222;
     }
 
-    h1 {
-      font-weight: 400;
-      margin-bottom: 0.5rem;
+    .sidebar-tab.active {
+      color: #1976d2;
+      border-bottom-color: #1976d2;
     }
 
-    .subtitle {
-      color: #666;
-      margin-bottom: 2rem;
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.5rem;
     }
 
-    .status {
-      padding: 1rem;
-      background: #fff;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      margin-bottom: 2rem;
+    .conversation-item {
+      padding: 0.75rem;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-bottom: 2px;
+      transition: background 0.1s;
     }
 
-    .status.loading {
-      background: #fffde7;
-      border-color: #fff59d;
+    .conversation-item:hover {
+      background: #f5f5f5;
     }
 
-    .status.ready {
-      background: #e8f5e9;
-      border-color: #a5d6a7;
+    .conversation-item.active {
+      background: #e3f2fd;
     }
 
-    .status.error {
-      background: #ffebee;
-      border-color: #ef9a9a;
+    .conversation-item .title {
+      font-size: 0.9rem;
+      font-weight: 500;
+      margin-bottom: 0.25rem;
     }
 
-    .conversations {
-      display: grid;
-      gap: 1rem;
+    .conversation-item .meta {
+      font-size: 0.75rem;
+      color: #888;
     }
 
-    .conversation {
-      background: #fff;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      padding: 1rem;
+    /* Atoms */
+    .atom-item {
+      padding: 0.6rem 0.75rem;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-bottom: 4px;
+      transition: background 0.1s;
+      display: flex;
+      align-items: baseline;
+      gap: 0.5rem;
     }
 
-    .conversation h2 {
-      font-size: 1rem;
+    .atom-item:hover {
+      background: #f5f5f5;
+    }
+
+    .atom-item.active {
+      background: #fff3e0;
+    }
+
+    .atom-item .term {
+      font-size: 0.95rem;
       font-weight: 600;
-      margin: 0 0 0.5rem 0;
+      color: #e65100;
     }
 
-    .conversation .meta {
+    .atom-item .count {
+      font-size: 0.7rem;
+      color: #888;
+    }
+
+    .atom-item .source {
+      font-size: 0.7rem;
+      color: #888;
+      margin-left: auto;
+    }
+
+    .atoms-header {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: #888;
+      padding: 0.75rem 0.75rem 0.5rem;
+    }
+
+    .sidebar-footer {
+      padding: 1rem;
+      border-top: 1px solid #e0e0e0;
+      font-size: 0.75rem;
+      color: #888;
+    }
+
+    /* Main reader */
+    .reader {
+      overflow-y: auto;
+      padding: 2rem 3rem;
+    }
+
+    .reader-inner {
+      max-width: 700px;
+    }
+
+    .reader-header {
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .reader-header h1 {
+      font-size: 1.75rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+    }
+
+    .reader-meta {
+      display: flex;
+      gap: 1.5rem;
       font-size: 0.85rem;
+      color: #666;
+    }
+
+    .reader-meta span {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    /* Conversation turns */
+    .turn {
+      margin-bottom: 2.5rem;
+    }
+
+    .turn-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .turn-role {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-shrink: 0;
+    }
+
+    .turn-role .icon {
+      width: 14px;
+      height: 14px;
+    }
+
+    .turn-role.user { color: #1976d2; }
+    .turn-role.assistant { color: #7b1fa2; }
+
+    .turn-rule {
+      flex: 1;
+      height: 1px;
+    }
+
+    .turn.user-turn .turn-rule {
+      background: linear-gradient(to right, #1976d2, transparent);
+    }
+
+    .turn.assistant-turn .turn-rule {
+      background: linear-gradient(to right, #7b1fa2, transparent);
+    }
+
+    .turn-content {
+      font-size: 1rem;
+      line-height: 1.7;
+    }
+
+    /* Markdown styling */
+    .turn-content p { margin-bottom: 1rem; }
+    .turn-content p:last-child { margin-bottom: 0; }
+
+    .turn-content h1, .turn-content h2, .turn-content h3 {
+      margin-top: 1.5rem;
+      margin-bottom: 0.75rem;
+      font-weight: 600;
+    }
+
+    .turn-content h1 { font-size: 1.4rem; }
+    .turn-content h2 { font-size: 1.2rem; }
+    .turn-content h3 { font-size: 1.1rem; }
+
+    .turn-content strong { font-weight: 600; }
+    .turn-content em { font-style: italic; }
+
+    .turn-content ul, .turn-content ol {
+      margin-bottom: 1rem;
+      padding-left: 1.5rem;
+    }
+
+    .turn-content li { margin-bottom: 0.35rem; }
+
+    .turn-content code {
+      font-family: 'SF Mono', Consolas, monospace;
+      font-size: 0.9em;
+      background: #f5f5f5;
+      padding: 0.15em 0.4em;
+      border-radius: 3px;
+    }
+
+    .turn-content pre {
+      background: #2d2d2d;
+      color: #f8f8f2;
+      padding: 1rem;
+      border-radius: 6px;
+      overflow-x: auto;
+      margin-bottom: 1rem;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+
+    .turn-content pre code {
+      background: none;
+      padding: 0;
+      color: inherit;
+    }
+
+    .turn-content blockquote {
+      border-left: 3px solid #ddd;
+      padding-left: 1rem;
       color: #666;
       margin-bottom: 1rem;
     }
 
-    .chunks {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
+    .turn-content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
     }
 
-    .chunk {
-      padding: 0.75rem;
+    .turn-content th, .turn-content td {
+      border: 1px solid #ddd;
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+    }
+
+    .turn-content th {
       background: #f5f5f5;
-      border-radius: 4px;
-      font-size: 0.9rem;
-      line-height: 1.5;
+      font-weight: 600;
+    }
+
+    .turn-content hr {
+      border: none;
+      border-top: 1px solid #e0e0e0;
+      margin: 1.5rem 0;
+    }
+
+    /* Atom highlights in text */
+    .atom-highlight {
+      background: linear-gradient(to bottom, transparent 60%, rgba(255, 167, 38, 0.3) 60%);
       cursor: pointer;
       transition: background 0.15s;
     }
 
-    .chunk:hover {
-      background: #eeeeee;
+    .atom-highlight:hover {
+      background: rgba(255, 167, 38, 0.4);
     }
 
-    .chunk.selected {
-      background: #e3f2fd;
-      border: 1px solid #90caf9;
-    }
-
-    .chunk .role {
-      font-weight: 600;
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      color: #888;
-      margin-bottom: 0.25rem;
-    }
-
-    .similarity-panel {
-      position: fixed;
-      right: 2rem;
-      top: 2rem;
-      width: 350px;
-      max-height: calc(100vh - 4rem);
-      overflow-y: auto;
-      background: #fff;
-      border: 1px solid #ddd;
-      border-radius: 4px;
+    /* Turn interaction */
+    .turn[data-turn] {
       padding: 1rem;
-      display: none;
+      margin-left: -1rem;
+      margin-right: -1rem;
+      border-radius: 8px;
+      transition: background 0.15s;
     }
 
-    .similarity-panel.visible {
-      display: block;
+    .turn[data-turn].highlighted {
+      background: #fff8e1;
     }
 
-    .similarity-panel h3 {
-      font-size: 0.9rem;
-      margin: 0 0 1rem 0;
+    /* Occurrence cards in main view */
+    .occurrence-card {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .occurrence-card:hover {
+      border-color: #bbb;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .occurrence-card .source {
+      font-size: 0.75rem;
       color: #666;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
     }
 
-    .similar-chunk {
-      padding: 0.5rem;
-      margin-bottom: 0.5rem;
+    .occurrence-card .source .role-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      flex-shrink: 0;
+    }
+
+    .occurrence-card .source .role-icon.user {
+      color: #1976d2;
+      background: #e3f2fd;
+    }
+
+    .occurrence-card .source .role-icon.assistant {
+      color: #7b1fa2;
+      background: #f3e5f5;
+    }
+
+    .occurrence-card .source .role-icon .icon {
+      width: 16px;
+      height: 16px;
+    }
+
+    .occurrence-card .source .conv-title {
+      flex: 1;
+    }
+
+    .occurrence-card .source .scale-label {
+      color: #aaa;
+      font-size: 0.7rem;
+    }
+
+    .occurrence-card .text {
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    .occurrence-card .text p {
+      margin: 0 0 0.75rem 0;
+    }
+
+    .occurrence-card .text p:last-child {
+      margin-bottom: 0;
+    }
+
+    .occurrence-card .text code {
+      font-size: 0.85em;
       background: #f5f5f5;
-      border-radius: 4px;
-      font-size: 0.85rem;
+      padding: 0.15em 0.4em;
+      border-radius: 3px;
     }
 
-    .similar-chunk .score {
-      font-size: 0.75rem;
-      color: #888;
-      margin-bottom: 0.25rem;
+    .occurrence-card .text pre {
+      background: #2d2d2d;
+      color: #f8f8f2;
+      padding: 0.75rem;
+      border-radius: 6px;
+      overflow-x: auto;
+      margin: 0.5rem 0;
+      font-size: 0.8rem;
     }
 
-    .similar-chunk .source {
-      font-size: 0.75rem;
+    .occurrence-card .text pre code {
+      background: none;
+      padding: 0;
+      color: inherit;
+    }
+
+    .occurrence-card .text ul, .occurrence-card .text ol {
+      margin: 0.5rem 0;
+      padding-left: 1.5rem;
+    }
+
+    .occurrence-card .text strong {
+      font-weight: 600;
+    }
+
+    .occurrence-card .text blockquote {
+      border-left: 3px solid #ddd;
+      padding-left: 1rem;
       color: #666;
-      font-style: italic;
-      margin-top: 0.25rem;
+      margin: 0.5rem 0;
+    }
+
+    /* Empty state */
+    .empty-state {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #888;
+      font-size: 0.9rem;
     }
 
     @media (max-width: 900px) {
-      .similarity-panel {
-        position: static;
-        width: 100%;
-        margin-top: 2rem;
-      }
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .reader { padding: 1.5rem; }
     }
   </style>
 </head>
 <body>
-  <h1>Pidgin</h1>
-  <p class="subtitle">Conversation explorer with semantic similarity</p>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1>Pidgin</h1>
+        <div class="corpus-label">corpus</div>
+      </div>
+      <div class="sidebar-tabs">
+        <button class="sidebar-tab active" data-tab="conversations">Conversations</button>
+        <button class="sidebar-tab" data-tab="atoms">Atoms</button>
+      </div>
+      <div class="sidebar-content" id="sidebar-content"></div>
+      <div class="sidebar-footer" id="sidebar-footer">Loading...</div>
+    </aside>
 
-  <div id="status" class="status loading">
-    Loading embedding model...
+    <main class="reader" id="reader">
+      <div class="empty-state">Select a conversation</div>
+    </main>
   </div>
 
-  <div id="conversations" class="conversations"></div>
 
-  <div id="similarity-panel" class="similarity-panel">
-    <h3>Similar passages</h3>
-    <div id="similar-chunks"></div>
-  </div>
 
   <script type="module">
-    import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
+    marked.setOptions({ gfm: true, breaks: false });
 
-    // Use remote models, no local cache needed
-    env.allowLocalModels = false;
+    // Icons for user/assistant
+    const icons = {
+      user: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+      </svg>`,
+      assistant: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>
+      </svg>`
+    };
 
-    const statusEl = document.getElementById('status');
-    const conversationsEl = document.getElementById('conversations');
-    const similarityPanel = document.getElementById('similarity-panel');
-    const similarChunksEl = document.getElementById('similar-chunks');
+    const state = {
+      conversations: [],
+      chunks: [],
+      embeddings: [],
+      atoms: [],
+      atomOccurrences: new Map(), // atom term -> [chunk indices]
+      currentConversation: null,
+      currentTab: 'conversations',
+      currentAtom: null,
+      ready: false,
+      worker: null
+    };
 
-    let embedder = null;
-    let allChunks = [];
-    let allEmbeddings = [];
+    const els = {
+      sidebarContent: document.getElementById('sidebar-content'),
+      sidebarFooter: document.getElementById('sidebar-footer'),
+      reader: document.getElementById('reader')
+    };
 
-    // Cosine similarity between two vectors
-    function cosineSimilarity(a, b) {
-      let dotProduct = 0;
-      let normA = 0;
-      let normB = 0;
-      for (let i = 0; i < a.length; i++) {
-        dotProduct += a[i] * b[i];
-        normA += a[i] * a[i];
-        normB += b[i] * b[i];
-      }
-      return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
-    }
-
-    // Parse markdown conversation into chunks
+    // Parse conversation file
     function parseConversation(markdown, filename) {
       const lines = markdown.split('\n');
-      const chunks = [];
+      const frontmatter = {};
+      const turns = [];
+      let inHeader = true;
       let currentRole = null;
       let currentContent = [];
-      let inFrontmatter = false;
-      let frontmatterDone = false;
 
       for (const line of lines) {
         if (line.trim() === '---') {
-          if (!frontmatterDone) {
-            inFrontmatter = !inFrontmatter;
-            if (!inFrontmatter) frontmatterDone = true;
-          }
+          inHeader = false;
           continue;
         }
 
-        if (inFrontmatter) continue;
+        if (inHeader) {
+          const titleMatch = line.match(/^#\s+(.+)$/);
+          if (titleMatch) {
+            frontmatter.title = titleMatch[1];
+            continue;
+          }
+          const metaMatch = line.match(/^(\w+):\s*(.+)$/);
+          if (metaMatch) {
+            frontmatter[metaMatch[1]] = metaMatch[2];
+          }
+          continue;
+        }
 
         const roleMatch = line.match(/^## (user|assistant)$/i);
         if (roleMatch) {
           if (currentRole && currentContent.length > 0) {
             const text = currentContent.join('\n').trim();
             if (text) {
-              chunks.push({
-                role: currentRole,
-                text: text,
-                source: filename
-              });
+              turns.push({ role: currentRole, text, source: filename });
             }
           }
           currentRole = roleMatch[1].toLowerCase();
@@ -244,108 +579,387 @@
         }
       }
 
-      // Don't forget the last chunk
       if (currentRole && currentContent.length > 0) {
         const text = currentContent.join('\n').trim();
         if (text) {
+          turns.push({ role: currentRole, text, source: filename });
+        }
+      }
+
+      const title = (frontmatter.title || filename.replace('.md', ''))
+        .replace(/-/g, ' ')
+        .replace(/^\w/, c => c.toUpperCase());
+
+      return { filename, title, frontmatter, turns };
+    }
+
+    // Parse atom file
+    function parseAtom(text, filename) {
+      const lines = text.trim().split('\n');
+      const atom = { filename };
+
+      for (const line of lines) {
+        const match = line.match(/^(\w+):\s*(.+)$/);
+        if (match) {
+          const key = match[1];
+          let value = match[2].trim();
+
+          if (value.startsWith('[') && value.endsWith(']')) {
+            value = value.slice(1, -1).split(',').map(s => s.trim()).filter(Boolean);
+          }
+
+          atom[key] = value;
+        }
+      }
+
+      return atom;
+    }
+
+    // Split text into paragraphs (by blank lines or markdown structure)
+    function splitIntoParagraphs(text) {
+      // Split on double newlines or markdown headers
+      const blocks = text.split(/\n\n+/);
+      return blocks
+        .map(b => b.trim())
+        .filter(b => b.length > 20); // Only keep substantial paragraphs
+    }
+
+    // Generate multi-scale chunks from conversations
+    function generateChunks(conversations) {
+      const chunks = [];
+
+      for (const conv of conversations) {
+        for (let turnIndex = 0; turnIndex < conv.turns.length; turnIndex++) {
+          const turn = conv.turns[turnIndex];
+
+          // Turn-level chunk
           chunks.push({
-            role: currentRole,
-            text: text,
-            source: filename
+            text: turn.text,
+            source: conv.filename,
+            role: turn.role,
+            scale: 'turn',
+            turnIndex
           });
+
+          // Paragraph-level chunks within the turn
+          const paragraphs = splitIntoParagraphs(turn.text);
+          for (const para of paragraphs) {
+            // Only add if different from the full turn (avoid duplicates for single-paragraph turns)
+            if (para !== turn.text && para.length > 30) {
+              chunks.push({
+                text: para,
+                source: conv.filename,
+                role: turn.role,
+                scale: 'paragraph',
+                turnIndex
+              });
+            }
+          }
         }
       }
 
       return chunks;
     }
 
-    // Truncate text for display
-    function truncate(text, maxLength = 200) {
-      if (text.length <= maxLength) return text;
-      return text.slice(0, maxLength) + '...';
+    // Find atom occurrences in chunks (prefer paragraph scale for precision)
+    function indexAtomOccurrences() {
+      for (const atom of state.atoms) {
+        const terms = [atom.term, ...(atom.aliases || [])];
+        const indices = [];
+
+        state.chunks.forEach((chunk, i) => {
+          const textLower = chunk.text.toLowerCase();
+          for (const term of terms) {
+            if (textLower.includes(term.toLowerCase())) {
+              indices.push(i);
+              break;
+            }
+          }
+        });
+
+        state.atomOccurrences.set(atom.term, indices);
+      }
     }
 
-    // Find similar chunks
-    function findSimilar(index, topK = 5) {
-      const targetEmbedding = allEmbeddings[index];
-      const similarities = allEmbeddings.map((emb, i) => ({
-        index: i,
-        score: i === index ? -1 : cosineSimilarity(targetEmbedding, emb)
-      }));
+    // Highlight atoms in HTML content
+    function highlightAtoms(html) {
+      let result = html;
 
-      similarities.sort((a, b) => b.score - a.score);
-      return similarities.slice(0, topK);
+      for (const atom of state.atoms) {
+        const terms = [atom.term, ...(atom.aliases || [])];
+
+        for (const term of terms) {
+          // Match whole words, case insensitive, but preserve original case
+          const regex = new RegExp(`\\b(${term})\\b`, 'gi');
+          result = result.replace(regex, `<span class="atom-highlight" data-atom="${atom.term}">$1</span>`);
+        }
+      }
+
+      return result;
     }
 
-    // Render similar chunks panel
-    function showSimilar(index) {
-      const similar = findSimilar(index);
+    function truncate(text, max = 150) {
+      if (text.length <= max) return text;
+      return text.slice(0, max).trim() + '...';
+    }
 
-      similarChunksEl.innerHTML = similar.map(({ index: i, score }) => {
-        const chunk = allChunks[i];
+    // Render sidebar based on current tab
+    function renderSidebar() {
+      document.querySelectorAll('.sidebar-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.tab === state.currentTab);
+      });
+
+      if (state.currentTab === 'conversations') {
+        renderConversationList();
+      } else {
+        renderAtomsList();
+      }
+    }
+
+    function renderConversationList() {
+      els.sidebarContent.innerHTML = state.conversations.map((conv, i) => `
+        <div class="conversation-item${state.currentConversation === i ? ' active' : ''}" data-index="${i}">
+          <div class="title">${conv.title}</div>
+          <div class="meta">${conv.frontmatter.date || ''} · ${conv.turns.length} turns</div>
+        </div>
+      `).join('');
+
+      els.sidebarContent.querySelectorAll('.conversation-item').forEach(el => {
+        el.addEventListener('click', () => selectConversation(parseInt(el.dataset.index)));
+      });
+    }
+
+    function renderAtomsList() {
+      if (state.atoms.length === 0) {
+        els.sidebarContent.innerHTML = '<div class="empty-state">No atoms defined</div>';
+        return;
+      }
+
+      // Sort by occurrence count
+      const sorted = [...state.atoms].sort((a, b) => {
+        const countA = state.atomOccurrences.get(a.term)?.length || 0;
+        const countB = state.atomOccurrences.get(b.term)?.length || 0;
+        return countB - countA;
+      });
+
+      els.sidebarContent.innerHTML = `
+        <div class="atoms-header">Named concepts</div>
+        ${sorted.map(atom => {
+          const count = state.atomOccurrences.get(atom.term)?.length || 0;
+          const sourceName = (atom.source || '').replace('.md', '').replace(/-/g, ' ');
+          return `
+            <div class="atom-item${state.currentAtom === atom.term ? ' active' : ''}" data-term="${atom.term}">
+              <span class="term">${atom.term}</span>
+              <span class="count">${count} passages</span>
+            </div>
+          `;
+        }).join('')}
+      `;
+
+      els.sidebarContent.querySelectorAll('.atom-item').forEach(el => {
+        el.addEventListener('click', () => {
+          const term = el.dataset.term;
+          showAtomOccurrences(term);
+        });
+      });
+    }
+
+    function renderReader(conv) {
+      const metaParts = [];
+      if (conv.frontmatter.date) metaParts.push(`<span>${conv.frontmatter.date}</span>`);
+      if (conv.frontmatter.follows) metaParts.push(`<span>follows: ${conv.frontmatter.follows}</span>`);
+
+      const turnsHtml = conv.turns.map((turn, i) => {
+        const rendered = marked.parse(turn.text);
+        const highlighted = highlightAtoms(rendered);
+        const icon = turn.role === 'user' ? icons.user : icons.assistant;
+        const turnClass = turn.role === 'user' ? 'user-turn' : 'assistant-turn';
         return `
-          <div class="similar-chunk">
-            <div class="score">${(score * 100).toFixed(1)}% similar</div>
-            <div>${truncate(chunk.text, 150)}</div>
-            <div class="source">${chunk.source} (${chunk.role})</div>
+          <div class="turn ${turnClass}" data-turn="${i}">
+            <div class="turn-header">
+              <div class="turn-role ${turn.role}">${icon}${turn.role}</div>
+              <div class="turn-rule"></div>
+            </div>
+            <div class="turn-content">${highlighted}</div>
           </div>
         `;
       }).join('');
 
-      similarityPanel.classList.add('visible');
-    }
-
-    // Render a conversation
-    function renderConversation(filename, chunks, startIndex) {
-      const container = document.createElement('div');
-      container.className = 'conversation';
-
-      const title = filename.replace('.md', '').replace(/-/g, ' ');
-      container.innerHTML = `
-        <h2>${title}</h2>
-        <div class="meta">${chunks.length} exchanges</div>
-        <div class="chunks"></div>
+      els.reader.innerHTML = `
+        <div class="reader-inner">
+          <header class="reader-header">
+            <h1>${conv.title}</h1>
+            ${metaParts.length ? `<div class="reader-meta">${metaParts.join('')}</div>` : ''}
+          </header>
+          <article class="turns">${turnsHtml}</article>
+        </div>
       `;
 
-      const chunksContainer = container.querySelector('.chunks');
-
-      chunks.forEach((chunk, i) => {
-        const chunkEl = document.createElement('div');
-        chunkEl.className = 'chunk';
-        chunkEl.innerHTML = `
-          <div class="role">${chunk.role}</div>
-          <div>${truncate(chunk.text)}</div>
-        `;
-
-        chunkEl.addEventListener('click', () => {
-          document.querySelectorAll('.chunk.selected').forEach(el => el.classList.remove('selected'));
-          chunkEl.classList.add('selected');
-          showSimilar(startIndex + i);
+      // Click on atom highlight to see occurrences
+      els.reader.querySelectorAll('.atom-highlight').forEach(el => {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const term = el.dataset.atom;
+          showAtomOccurrences(term);
         });
-
-        chunksContainer.appendChild(chunkEl);
       });
 
-      return container;
     }
 
-    // Main
+    function selectConversation(index) {
+      state.currentConversation = index;
+      state.currentAtom = null;
+      renderSidebar();
+      renderReader(state.conversations[index]);
+    }
+
+    function showAtomOccurrences(term) {
+      state.currentAtom = term;
+      state.currentConversation = null;
+      renderSidebar();
+
+      const atom = state.atoms.find(a => a.term === term);
+      const indices = state.atomOccurrences.get(term) || [];
+
+      const cardsHtml = indices.length === 0
+        ? '<div class="empty-state">No occurrences found</div>'
+        : indices.map(index => {
+            const chunk = state.chunks[index];
+            const convTitle = state.conversations.find(c => c.filename === chunk.source)?.title || chunk.source;
+            const rendered = highlightAtoms(marked.parse(chunk.text));
+            const scaleLabel = chunk.scale === 'paragraph' ? 'paragraph' : 'turn';
+            const icon = chunk.role === 'user' ? icons.user : icons.assistant;
+            return `
+              <div class="occurrence-card" data-source="${chunk.source}" data-turn-index="${chunk.turnIndex}">
+                <div class="source">
+                  <span class="role-icon ${chunk.role}">${icon}</span>
+                  <span class="conv-title">${convTitle}</span>
+                  <span class="scale-label">${scaleLabel}</span>
+                </div>
+                <div class="text">${rendered}</div>
+              </div>
+            `;
+          }).join('');
+
+      els.reader.innerHTML = `
+        <div class="reader-inner">
+          <header class="reader-header">
+            <h1>${term}</h1>
+            <div class="reader-meta">
+              <span>${indices.length} occurrence${indices.length !== 1 ? 's' : ''}</span>
+              ${atom?.source ? `<span>named in: ${atom.source.replace('.md', '').replace(/-/g, ' ')}</span>` : ''}
+            </div>
+          </header>
+          <div class="occurrences">${cardsHtml}</div>
+        </div>
+      `;
+
+      els.reader.querySelectorAll('.occurrence-card').forEach(el => {
+        el.addEventListener('click', () => {
+          const source = el.dataset.source;
+          const turnIndex = parseInt(el.dataset.turnIndex);
+          const convIndex = state.conversations.findIndex(c => c.filename === source);
+          if (convIndex >= 0) {
+            selectConversation(convIndex);
+            setTimeout(() => {
+              const targetEl = els.reader.querySelector(`.turn[data-turn="${turnIndex}"]`);
+              if (targetEl) {
+                targetEl.classList.add('highlighted');
+                targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            }, 50);
+          }
+        });
+      });
+    }
+
+
+    // Setup
+    function setupEventListeners() {
+      document.querySelectorAll('.sidebar-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          state.currentTab = tab.dataset.tab;
+          state.currentAtom = null;
+          renderSidebar();
+        });
+      });
+    }
+
+    function updateFooter(status = '') {
+      const suffix = status ? ` · ${status}` : (state.ready ? '' : ' · indexing...');
+      const turnCount = state.chunks.filter(c => c.scale === 'turn').length;
+      const paraCount = state.chunks.filter(c => c.scale === 'paragraph').length;
+      els.sidebarFooter.textContent = `${turnCount} turns · ${paraCount} paragraphs · ${state.atoms.length} atoms${suffix}`;
+    }
+
+    // Load embeddings in a web worker (non-blocking)
+    function loadEmbeddingsInWorker() {
+      try {
+        state.worker = new Worker('embedding-worker.js', { type: 'module' });
+
+        state.worker.onmessage = (e) => {
+          const { type, embeddings, current, total, message } = e.data;
+
+          if (type === 'progress') {
+            updateFooter(`${current}/${total}`);
+          } else if (type === 'complete') {
+            state.embeddings = embeddings;
+            state.ready = true;
+            updateFooter();
+            state.worker.terminate();
+            state.worker = null;
+          } else if (type === 'error') {
+            console.error('Worker error:', message);
+            updateFooter('index failed');
+          }
+        };
+
+        state.worker.onerror = (e) => {
+          console.error('Worker error:', e);
+          updateFooter('index failed');
+        };
+
+        // Send chunks to worker
+        const texts = state.chunks.map(c => c.text);
+        state.worker.postMessage({ type: 'embed', chunks: texts });
+      } catch (error) {
+        console.error('Failed to start worker:', error);
+        updateFooter('');
+      }
+    }
+
     async function main() {
       try {
-        // Load the embedding model
-        statusEl.textContent = 'Loading embedding model (this may take a moment on first load)...';
-        embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+        // Load atoms (fast, no model needed)
+        try {
+          const indexRes = await fetch('atoms/index.json');
+          if (indexRes.ok) {
+            const atomFiles = await indexRes.json();
+            for (const file of atomFiles) {
+              try {
+                const res = await fetch(`atoms/${file}`);
+                if (res.ok) {
+                  const text = await res.text();
+                  const atom = parseAtom(text, file);
+                  state.atoms.push(atom);
+                }
+              } catch (e) {
+                console.warn(`Could not load atom ${file}:`, e);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Could not load atoms index:', e);
+        }
 
-        statusEl.textContent = 'Loading conversations...';
-
-        // Load conversation files
+        // Load conversations (fast)
         const files = [
           'conversations/pidgin-origin.md',
           'conversations/reflecting-on-structure.md',
-          'conversations/distillation-and-discovery.md'
+          'conversations/distillation-and-discovery.md',
+          'conversations/layers-and-chunks.md',
+          'conversations/atoms-and-scales.md'
         ];
-
-        const conversations = [];
 
         for (const file of files) {
           try {
@@ -353,47 +967,36 @@
             if (response.ok) {
               const text = await response.text();
               const filename = file.split('/').pop();
-              const chunks = parseConversation(text, filename);
-              conversations.push({ filename, chunks });
+              const conv = parseConversation(text, filename);
+              state.conversations.push(conv);
             }
           } catch (e) {
             console.warn(`Could not load ${file}:`, e);
           }
         }
 
-        if (conversations.length === 0) {
-          statusEl.textContent = 'No conversations found. Make sure conversation files exist in /conversations/';
-          statusEl.className = 'status error';
+        if (state.conversations.length === 0) {
+          els.sidebarFooter.textContent = 'No conversations found';
           return;
         }
 
-        // Collect all chunks
-        for (const conv of conversations) {
-          allChunks.push(...conv.chunks);
-        }
+        // Generate multi-scale chunks (turns + paragraphs)
+        state.chunks = generateChunks(state.conversations);
 
-        statusEl.textContent = `Embedding ${allChunks.length} passages...`;
+        // Index atom occurrences (fast, text matching)
+        indexAtomOccurrences();
 
-        // Embed all chunks
-        for (let i = 0; i < allChunks.length; i++) {
-          const result = await embedder(allChunks[i].text, { pooling: 'mean', normalize: true });
-          allEmbeddings.push(Array.from(result.data));
-          statusEl.textContent = `Embedding ${i + 1}/${allChunks.length} passages...`;
-        }
+        // Show UI immediately
+        setupEventListeners();
+        renderSidebar();
+        selectConversation(0);
+        updateFooter();
 
-        statusEl.textContent = `Ready. ${allChunks.length} passages embedded. Click any passage to see similar ones.`;
-        statusEl.className = 'status ready';
-
-        // Render conversations
-        let startIndex = 0;
-        for (const conv of conversations) {
-          conversationsEl.appendChild(renderConversation(conv.filename, conv.chunks, startIndex));
-          startIndex += conv.chunks.length;
-        }
+        // Load embeddings in worker (non-blocking)
+        loadEmbeddingsInWorker();
 
       } catch (error) {
-        statusEl.textContent = `Error: ${error.message}`;
-        statusEl.className = 'status error';
+        els.sidebarFooter.textContent = `Error: ${error.message}`;
         console.error(error);
       }
     }
