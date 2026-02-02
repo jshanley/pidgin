@@ -255,3 +255,29 @@ Enriched files exist in history at `cf69c43` if needed.
 ## assistant
 
 Done. Working directory is clean. The enriched format examples are preserved in git history but removed from the working tree.
+
+## user
+
+I realized something. I was being forgetful. Review the latest conversation about transcripts. I realized that the reason the first three conversations had no transcript was because I started the project on a different computer. I'm back on that computer again. It's a windows PC so I bet the transcripts are stored in a slightly different place. Review that conversation and then help me look for them.
+
+## assistant
+
+Reviewed the conversation and searched for transcripts on Windows. Found them at `~/.claude/projects/C--Users-PC-code-dsl/` (Windows path encoding differs from Mac).
+
+Two transcript files discovered:
+- `41151751-3e0f-4794-a951-166fdcd051e2.jsonl` — contains **pidgin-origin** and **reflecting-on-structure**
+- `b470e6f8-c59d-4ef6-9d10-b1fc1f35e09d.jsonl` — contains **distillation-and-discovery**
+
+The mystery solved: transcripts weren't lost, just on a different machine with different path encoding.
+
+## user
+
+absolutely
+
+## tool (copy + commit)
+
+Copied both Windows transcripts to `.transcripts/`. Updated frontmatter in all three early conversations to link to their source transcripts. Committed as `70c6923`: "add missing transcripts from Windows PC"
+
+## assistant
+
+All 11 conversations now have their source transcripts preserved in the repo.
