@@ -2,6 +2,7 @@
 
 date: 2026-01-31T12:37:53-08:00
 follows: reflecting-on-structure
+transcript: b470e6f8-c59d-4ef6-9d10-b1fc1f35e09d
 
 ---
 

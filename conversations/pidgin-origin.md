@@ -1,5 +1,6 @@
 # Pidgin Origin Conversation
 date: 2026-01-31T11:36:04-08:00
+transcript: 41151751-3e0f-4794-a951-166fdcd051e2
 
 ---
 
