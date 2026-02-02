@@ -3,12 +3,13 @@ import { formatDate } from '../utils/formatDate'
 import { slugify } from '../utils/slugify'
 import { useAppState } from '../hooks/useAppState'
 
-export function ConversationList() {
+export function ConversationList({ onNavigate }) {
   const { conversations, activeSection } = useAppState()
   const navigate = useNavigate()
 
   const handleClick = (slug) => {
     navigate({ to: '/conversations/$slug', params: { slug } })
+    onNavigate?.()
   }
 
   return (

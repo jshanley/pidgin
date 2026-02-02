@@ -16,6 +16,7 @@ body {
   display: grid;
   grid-template-columns: 260px 1fr;
   height: 100vh;
+  overflow-x: hidden;
 }
 
 /* Sidebar */
@@ -161,6 +162,7 @@ body {
 /* Main reader */
 .reader {
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 2rem 3rem;
 }
 
@@ -505,8 +507,121 @@ body {
   font-size: 0.9rem;
 }
 
+/* Mobile header */
+.mobile-header {
+  display: none;
+}
+
+.menu-toggle {
+  display: none;
+}
+
+.menu-overlay {
+  display: none;
+}
+
 @media (max-width: 900px) {
-  .layout { grid-template-columns: 1fr; }
-  .sidebar { display: none; }
-  .reader { padding: 1.5rem; }
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .mobile-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3rem;
+    padding: 0 0.75rem;
+    background: #fff;
+    border-bottom: 1px solid #e0e0e0;
+    z-index: 100;
+    transform: translateY(0);
+    transition: transform 0.2s ease-out;
+  }
+
+  .mobile-header.hidden {
+    transform: translateY(-100%);
+  }
+
+  .mobile-header-title {
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .menu-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 0.25rem;
+    cursor: pointer;
+    color: #222;
+    border-radius: 4px;
+  }
+
+  .menu-toggle:hover {
+    background: #f0f0f0;
+  }
+
+  .menu-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 199;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    z-index: 200;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease-out;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .reader {
+    padding: 1rem;
+    padding-top: 3.5rem;
+  }
+
+  .reader-inner,
+  .corpus {
+    max-width: 100%;
+  }
+
+  .turn {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  .turn-icon {
+    left: -0.5rem;
+    width: 1.5rem;
+  }
+
+  .turn-icon .icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .turn-content pre,
+  .turn-content table {
+    max-width: calc(100vw - 3rem);
+  }
+
+  .turn-content {
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
 }
