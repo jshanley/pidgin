@@ -4,7 +4,7 @@ import { marked } from 'marked'
 import { formatDate } from '../utils/formatDate'
 import { slugify } from '../utils/slugify'
 import { highlightAtoms } from '../utils/highlightAtoms'
-import { UserIcon, AssistantIcon } from '../utils/icons'
+import { UserIcon, AssistantIcon, ToolIcon } from '../utils/icons'
 import { useAppState } from '../hooks/useAppState'
 import { useScrollSpy } from '../hooks/useScrollSpy'
 import { scrollToElement } from '../hooks/useScrollSpy'
@@ -95,8 +95,9 @@ const ConversationSection = memo(function ConversationSection({ conversation, at
 const Turn = memo(function Turn({ turn, atoms }) {
   const rendered = marked.parse(turn.text)
   const highlighted = highlightAtoms(rendered, atoms)
-  const Icon = turn.role === 'user' ? UserIcon : AssistantIcon
-  const turnClass = turn.role === 'user' ? 'user-turn' : 'assistant-turn'
+  const Icon = turn.role === 'tool' ? ToolIcon : turn.role === 'user' ? UserIcon : AssistantIcon
+  const turnClass = turn.role === 'tool' ? 'tool-turn' : turn.role === 'user' ? 'user-turn' : 'assistant-turn'
+  const roleLabel = turn.role === 'tool' && turn.toolName ? `tool (${turn.toolName})` : turn.role
 
   return (
     <div className={`turn ${turnClass}`}>
@@ -105,7 +106,7 @@ const Turn = memo(function Turn({ turn, atoms }) {
       </div>
       <div className="turn-header">
         <div className={`turn-role ${turn.role}`}>
-          {turn.role}
+          {roleLabel}
         </div>
         <div className="turn-rule"></div>
       </div>

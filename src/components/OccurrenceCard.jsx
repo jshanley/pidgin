@@ -1,5 +1,5 @@
 import { marked } from 'marked'
-import { UserIcon, AssistantIcon } from '../utils/icons'
+import { UserIcon, AssistantIcon, ToolIcon } from '../utils/icons'
 import { highlightAtoms } from '../utils/highlightAtoms'
 import { useAppState, useAppDispatch } from '../hooks/useAppState'
 
@@ -10,7 +10,7 @@ export function OccurrenceCard({ chunk }) {
   const convTitle = conversations.find(c => c.filename === chunk.source)?.title || chunk.source
   const rendered = highlightAtoms(marked.parse(chunk.text), atoms)
   const scaleLabel = chunk.scale === 'paragraph' ? 'paragraph' : 'turn'
-  const Icon = chunk.role === 'user' ? UserIcon : AssistantIcon
+  const Icon = chunk.role === 'tool' ? ToolIcon : chunk.role === 'user' ? UserIcon : AssistantIcon
 
   const handleClick = () => {
     const convIndex = conversations.findIndex(c => c.filename === chunk.source)

@@ -239,6 +239,7 @@ body {
 
 .turn.user-turn .turn-icon { color: #1976d2; }
 .turn.assistant-turn .turn-icon { color: #7b1fa2; }
+.turn.tool-turn .turn-icon { color: #558b2f; }
 
 .turn-role {
   font-size: 0.8rem;
@@ -250,6 +251,7 @@ body {
 
 .turn-role.user { color: #1976d2; }
 .turn-role.assistant { color: #7b1fa2; }
+.turn-role.tool { color: #558b2f; }
 
 .turn-rule {
   flex: 1;
@@ -262,6 +264,10 @@ body {
 
 .turn.assistant-turn .turn-rule {
   background: linear-gradient(to right, #7b1fa2, transparent);
+}
+
+.turn.tool-turn .turn-rule {
+  background: linear-gradient(to right, #558b2f, transparent);
 }
 
 .turn-content {
@@ -416,6 +422,11 @@ body {
 .occurrence-card .source .role-icon.assistant {
   color: #7b1fa2;
   background: #f3e5f5;
+}
+
+.occurrence-card .source .role-icon.tool {
+  color: #558b2f;
+  background: #dcedc8;
 }
 
 .occurrence-card .source .role-icon .icon {

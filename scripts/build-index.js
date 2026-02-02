@@ -13,6 +13,7 @@ function parseConversation(markdown, filename) {
   const turns = [];
   let inHeader = true;
   let currentRole = null;
+  let currentToolName = null;
   let currentContent = [];
 
   for (const line of lines) {
@@ -35,14 +36,21 @@ function parseConversation(markdown, filename) {
     }
 
     const roleMatch = line.match(/^## (user|assistant)$/i);
-    if (roleMatch) {
+    const toolMatch = line.match(/^## tool(?: \(([^)]+)\))?$/i);
+    if (roleMatch || toolMatch) {
       if (currentRole && currentContent.length > 0) {
         const text = currentContent.join('\n').trim();
         if (text) {
-          turns.push({ role: currentRole, text, source: filename });
+          turns.push({ role: currentRole, text, source: filename, ...(currentToolName && { toolName: currentToolName }) });
         }
       }
-      currentRole = roleMatch[1].toLowerCase();
+      if (toolMatch) {
+        currentRole = 'tool';
+        currentToolName = toolMatch[1] || null;
+      } else {
+        currentRole = roleMatch[1].toLowerCase();
+        currentToolName = null;
+      }
       currentContent = [];
     } else if (currentRole) {
       currentContent.push(line);
@@ -52,7 +60,7 @@ function parseConversation(markdown, filename) {
   if (currentRole && currentContent.length > 0) {
     const text = currentContent.join('\n').trim();
     if (text) {
-      turns.push({ role: currentRole, text, source: filename });
+      turns.push({ role: currentRole, text, source: filename, ...(currentToolName && { toolName: currentToolName }) });
     }
   }
 

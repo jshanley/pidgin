@@ -1,5 +1,5 @@
 import { marked } from 'marked'
-import { UserIcon, AssistantIcon } from '../utils/icons'
+import { UserIcon, AssistantIcon, ToolIcon } from '../utils/icons'
 import { highlightAtoms } from '../utils/highlightAtoms'
 import { useAppState, useAppDispatch } from '../hooks/useAppState'
 
@@ -11,8 +11,9 @@ export function Turn({ turn, index }) {
 
   const rendered = marked.parse(turn.text)
   const highlighted = highlightAtoms(rendered, atoms)
-  const Icon = turn.role === 'user' ? UserIcon : AssistantIcon
-  const turnClass = turn.role === 'user' ? 'user-turn' : 'assistant-turn'
+  const Icon = turn.role === 'tool' ? ToolIcon : turn.role === 'user' ? UserIcon : AssistantIcon
+  const turnClass = turn.role === 'tool' ? 'tool-turn' : turn.role === 'user' ? 'user-turn' : 'assistant-turn'
+  const roleLabel = turn.role === 'tool' && turn.toolName ? `tool (${turn.toolName})` : turn.role
   const isHighlighted = highlightedTurn === index
 
   const handleAtomClick = (e) => {
@@ -31,7 +32,7 @@ export function Turn({ turn, index }) {
       <div className="turn-header">
         <div className={`turn-role ${turn.role}`}>
           <Icon />
-          {turn.role}
+          {roleLabel}
         </div>
         <div className="turn-rule"></div>
       </div>
