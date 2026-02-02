@@ -225,3 +225,33 @@ Copied 9 transcripts to `.transcripts/`. Committed as `f3380d4`: "add transcript
 ## assistant
 
 This file is that curated pass. Tool calls show what tool and what it found—not full invocations. The transcript at `.transcripts/72b67e54-deb3-49b0-9df2-ba7c21f36df2.jsonl` has everything. This has what matters for reading.
+
+## user
+
+The first several conversations—I think maybe the first three—didn't have associated transcripts. I think I know why: it was during the initial conversation that the name pidgin was chosen. Prior to that, the folder was called dsl. I don't know what Claude does when a folder is renamed. Maybe look one level up in the transcripts directory—see if anything is in another place. DSL as in domain specific language was the original name.
+
+## tool (search ~/.claude/projects/)
+
+Searched for `-Users-john-code-dsl` directory and DSL-related content. No matching directory exists. Searched debug folder—contains log files, not conversation content. The earliest pidgin transcript (`2cb4f2a8`) starts with "explore this repo thoroughly"—that's layers-and-chunks, after the rename.
+
+## assistant
+
+The three early conversations (pidgin-origin, reflecting-on-structure, distillation-and-discovery) appear genuinely lost. Either not migrated when the folder was renamed, or cleaned up. The markdown we have is what remains.
+
+## user
+
+I would commit everything and then cleanup the enriched ones. That way they exist in the git history.
+
+## tool (commit sequence)
+
+```
+f3380d4 add transcripts as source material
+cf69c43 transcripts as source: skill, script, curated conversation
+50ada16 remove enriched files (preserved in history)
+```
+
+Enriched files exist in history at `cf69c43` if needed.
+
+## assistant
+
+Done. Working directory is clean. The enriched format examples are preserved in git history but removed from the working tree.
