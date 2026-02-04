@@ -1,4 +1,4 @@
-import { createRouter, createRootRoute, createRoute, createHashHistory } from '@tanstack/react-router'
+import { createRouter, createRootRoute, createRoute } from '@tanstack/react-router'
 import App from './App'
 
 // Root route - the layout wrapper
@@ -48,12 +48,7 @@ const routeTree = rootRoute.addChildren([
   readingRoute
 ])
 
-// Create hash history for GitHub Pages
-const hashHistory = createHashHistory()
-
-// Create router
 export const router = createRouter({
   routeTree,
-  history: hashHistory,
   defaultPreload: 'intent'
 })

@@ -1,6 +1,5 @@
 import { readdir, readFile, writeFile, mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
-import { pipeline } from '@xenova/transformers';
 
 const CONVERSATIONS_DIR = 'conversations';
 const LIBRARIAN_DIR = '.librarian/artifacts';
@@ -327,21 +326,6 @@ async function main() {
   // Index term occurrences
   const occurrences = indexTermOccurrences(terms, chunks);
 
-  // Generate embeddings
-  console.log('Loading embedding model...');
-  const embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-
-  console.log('Embedding chunks...');
-  const embeddings = [];
-  for (let i = 0; i < chunks.length; i++) {
-    const result = await embedder(chunks[i].text, { pooling: 'mean', normalize: true });
-    embeddings.push(Array.from(result.data));
-    if ((i + 1) % 50 === 0) {
-      console.log(`  ${i + 1}/${chunks.length}`);
-    }
-  }
-  console.log(`Generated ${embeddings.length} embeddings`);
-
   // Build output (include full conversations for reader)
   const index = {
     terms,
@@ -349,7 +333,6 @@ async function main() {
     readings,
     chunks,
     occurrences,
-    embeddings,
     buildTime: new Date().toISOString()
   };
 
