@@ -78,3 +78,27 @@ Both instincts are correct. The conversation is already doing the work of self-r
 But there's a risk in the programmer's instinct too. If you index too eagerly you kill the thing that makes it work. The conjuring happens *because* it's a felt reference, not a lookup. "DSLs → semantic compression → pidgin" works because your mind fills in the gaps. A hyperlink to the exact passage would be more precise and less powerful.
 
 Maybe the right move is what conversations already do: leave the references soft, but keep the source material intact and findable. The distillation conjures. If the conjuring isn't enough, you go read the original. The index is your memory. The backup is the transcript.
+
+## user
+
+let's save this conversation
+
+## assistant
+
+Saved to `conversations/distillation-and-conjuring.md`.
+
+## user
+
+add conjuring to our highlighted terms
+
+## assistant
+
+Added `conjuring` (with aliases `conjure`, `conjures`, `conjured`) to `src/terms.txt`. Rebuild the index to pick it up.
+
+## user
+
+build and deploy
+
+## assistant
+
+Build succeeded — 6 terms now (including conjuring), 16 conversations. Pushed to main, Vercel deploys automatically.
