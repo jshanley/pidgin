@@ -1,11 +1,11 @@
-import { useNavigate } from '@tanstack/react-router'
-import { formatDate } from '../utils/formatDate'
+import { useNavigate, useParams } from '@tanstack/react-router'
 import { slugify } from '../utils/slugify'
 import { useAppState } from '../hooks/useAppState'
 
 export function ConversationList({ onNavigate }) {
-  const { conversations, activeSection } = useAppState()
+  const { conversations } = useAppState()
   const navigate = useNavigate()
+  const params = useParams({ strict: false })
 
   const handleClick = (slug) => {
     navigate({ to: '/conversations/$slug', params: { slug } })
@@ -16,7 +16,7 @@ export function ConversationList({ onNavigate }) {
     <>
       {conversations.map((conv) => {
         const slug = slugify(conv.title)
-        const isActive = activeSection === slug
+        const isActive = params.slug === slug
         return (
           <div
             key={conv.filename}
@@ -24,9 +24,6 @@ export function ConversationList({ onNavigate }) {
             onClick={() => handleClick(slug)}
           >
             <div className="title">{conv.title}</div>
-            <div className="meta">
-              {formatDate(conv.frontmatter.date)} · {conv.turns.length} turns
-            </div>
           </div>
         )
       })}

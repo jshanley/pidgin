@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, useMemo, useCallback, useRef } from 'react'
+import { createContext, useContext, useReducer, useMemo } from 'react'
 
 const AppStateContext = createContext(null)
 const AppDispatchContext = createContext(null)
@@ -9,8 +9,7 @@ const initialState = {
   chunks: [],
   atoms: [],
   atomOccurrences: new Map(),
-  currentTab: 'conversations',
-  activeSection: null
+  currentTab: 'conversations'
 }
 
 function appReducer(state, action) {
@@ -29,11 +28,6 @@ function appReducer(state, action) {
         ...state,
         currentTab: action.tab
       }
-    case 'SET_ACTIVE_SECTION':
-      return {
-        ...state,
-        activeSection: action.section
-      }
     default:
       return state
   }
@@ -41,17 +35,8 @@ function appReducer(state, action) {
 
 export function AppStateProvider({ children }) {
   const [state, dispatch] = useReducer(appReducer, initialState)
-  const scrollContainerRef = useRef(null)
 
-  const setActiveSection = useCallback((section) => {
-    dispatch({ type: 'SET_ACTIVE_SECTION', section })
-  }, [])
-
-  const contextValue = useMemo(() => ({
-    ...state,
-    setActiveSection,
-    scrollContainerRef
-  }), [state, setActiveSection])
+  const contextValue = useMemo(() => state, [state])
 
   return (
     <AppStateContext.Provider value={contextValue}>

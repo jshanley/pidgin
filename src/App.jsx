@@ -1,15 +1,14 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Outlet, useParams, useNavigate, useMatches } from '@tanstack/react-router'
-import { useAppDispatch, useAppState } from './hooks/useAppState'
+import { useAppDispatch } from './hooks/useAppState'
 import { Sidebar } from './components/Sidebar'
 import { Reader } from './components/Reader'
 
 export default function App() {
   const dispatch = useAppDispatch()
-  const { scrollContainerRef } = useAppState()
   const [menuOpen, setMenuOpen] = useState(false)
   const [headerVisible, setHeaderVisible] = useState(true)
   const lastScrollY = useRef(0)
+  const readerRef = useRef(null)
 
   const handleScroll = useCallback((e) => {
     const scrollY = e.target.scrollTop
@@ -66,7 +65,7 @@ export default function App() {
       </header>
       {menuOpen && <div className="menu-overlay" onClick={() => setMenuOpen(false)} />}
       <Sidebar className={menuOpen ? 'open' : ''} onNavigate={() => setMenuOpen(false)} />
-      <main className="reader" ref={scrollContainerRef} onScroll={handleScroll}>
+      <main className="reader" ref={readerRef} onScroll={handleScroll}>
         <Reader />
       </main>
     </div>
